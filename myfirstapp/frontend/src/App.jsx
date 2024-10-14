@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-
 const Button = ({ onClick, className, children }) => (
     <button
         onClick={onClick}
@@ -79,7 +78,9 @@ const DrawingApp = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         ctx.beginPath();
-        ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+        const offsetX = e.nativeEvent.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left;
+        const offsetY = e.nativeEvent.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top;
+        ctx.moveTo(offsetX, offsetY);
         setIsDrawing(true);
     };
 
@@ -87,12 +88,15 @@ const DrawingApp = () => {
         if (!isDrawing) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
+        const offsetX = e.nativeEvent.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left;
+        const offsetY = e.nativeEvent.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top;
+
         if (isEraserActive) {
-            ctx.clearRect(e.nativeEvent.offsetX - eraserSize / 2, e.nativeEvent.offsetY - eraserSize / 2, eraserSize, eraserSize);
+            ctx.clearRect(offsetX - eraserSize / 2, offsetY - eraserSize / 2, eraserSize, eraserSize);
         } else {
             ctx.strokeStyle = color;
             ctx.lineWidth = 3;
-            ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+            ctx.lineTo(offsetX, offsetY);
             ctx.stroke();
         }
     };
@@ -118,28 +122,7 @@ const DrawingApp = () => {
             const genAI = new GoogleGenerativeAI(process.env.GEMIN_KEY); // Replace with your API key
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            const result = await model.generateContent([
-                `You are an intelligent assistant capable of providing detailed explanations and solutions to a wide range of questions, including mathematical problems and general knowledge inquiries. 
-
-"1. If the user asks a mathematical question, please provide a step - by - step solution, explaining each step clearly and logically."
-"2. If the user asks a general knowledge question(e.g., "What is a triangle?"), provide a concise definition, relevant examples, and any important details that may help enhance understanding."
-3. Always be sure to clarify complex concepts and relate them to real - world applications where possible.
-
-Here are some example questions:
-                - "What is the area of a triangle with a base of 10 cm and a height of 5 cm?"
-                - "Can you explain the Pythagorean theorem?"
-                - "What is the definition of a triangle?"
-                - "How do I solve the equation 2x + 3 = 7?"
-
-Respond as if you are a knowledgeable teacher, and strive to make your explanations clear and engaging.
-`,
-                {
-                    inlineData: {
-                        data: imageDataUrl.split(',')[1],
-                        mimeType: "image/png"
-                    },
-                },
-            ]);
+            const result = await model.generateContent([ /* ... */ ]);
 
             const response = await result.response;
             const text = await response.text();
@@ -172,16 +155,19 @@ Respond as if you are a knowledgeable teacher, and strive to make your explanati
 
     return (
         <div className="relative w-full h-screen bg-gray-900">
-            <div className="absolute top-0 left-0 z-10 p-4 space-x-4 flex items-center">
+            <div className="absolute top-0 left-0 z-10 p-4 space-x-4 flex flex-wrap items-center">
                 <Button onClick={resetCanvas} className="bg-red-500 text-white">
                     Reset
                 </Button>
                 <Button onClick={processImage} className="bg-green-500 text-white">
                     Process
                 </Button>
+            </div>
 
+            {/* Color palette and controls */}
+            <div className="absolute top-16 left-0 z-10 p-4 space-x-4 flex flex-col md:flex-row items-center">
                 {/* Color palette for selecting the color */}
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 overflow-x-auto">
                     {['white', 'red', 'green', 'blue', 'yellow', 'purple'].map((clr) => (
                         <div
                             key={clr}
@@ -193,7 +179,7 @@ Respond as if you are a knowledgeable teacher, and strive to make your explanati
                 </div>
 
                 {/* Range input for eraser size */}
-                <div className="flex items-center">
+                <div className="flex items-center mt-2 md:mt-0">
                     <input
                         type="range"
                         min="5"
@@ -223,6 +209,9 @@ Respond as if you are a knowledgeable teacher, and strive to make your explanati
                 onMouseMove={draw}
                 onMouseUp={stopDrawing}
                 onMouseOut={stopDrawing}
+                onTouchStart={startDrawing} // Add touch events
+                onTouchMove={draw}          // Add touch events
+                onTouchEnd={stopDrawing}    // Add touch events
             />
 
             {latexExpression && (
