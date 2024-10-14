@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import dotenv from "dotenv"
+dotenv.config()
 
 const Button = ({ onClick, className, children }) => (
     <button
@@ -114,7 +116,7 @@ const DrawingApp = () => {
         const imageDataUrl = canvas.toDataURL('image/png');
 
         try {
-            const genAI = new GoogleGenerativeAI('AIzaSyDHzxPkKlgKzBtNX9iYWwqsyJexp6rROPM'); // Replace with your API key
+            const genAI = new GoogleGenerativeAI(process.env.GEMIN_KEY); // Replace with your API key
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
             const result = await model.generateContent([
