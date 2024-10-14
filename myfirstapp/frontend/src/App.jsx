@@ -1,8 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import dotenv from "dotenv"
-dotenv.config()
+
 
 const Button = ({ onClick, className, children }) => (
     <button
