@@ -119,7 +119,7 @@ const DrawingApp = () => {
         const imageDataUrl = canvas.toDataURL('image/png');
 
         try {
-            const genAI = new GoogleGenerativeAI(process.env.GEMIN_KEY); // Replace with your API key
+            const genAI = new GoogleGenerativeAI("AIzaSyDHzxPkKlgKzBtNX9iYWwqsyJexp6rROPM");
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
             const result = await model.generateContent([ /* ... */ ]);
