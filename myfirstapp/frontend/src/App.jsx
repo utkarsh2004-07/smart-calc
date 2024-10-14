@@ -1,6 +1,23 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import './CustomScrollbar.css'; // Assuming you have custom scrollbar styling
+
+// You would typically import this, but for completeness, let's include the CSS here
+const styles = `
+.custom-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+body {
+    overscroll-behavior-y: contain;
+}
+`;
 
 const Button = ({ onClick, className, children }) => (
     <button
@@ -74,16 +91,30 @@ export default function App() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Prevent pull-to-refresh gesture on mobile devices
+    // Improved pull-to-refresh prevention
     useEffect(() => {
-        const preventPullToRefresh = (e) => {
-            if (e.touches.length > 1) e.preventDefault();
+        let startY;
+
+        const handleTouchStart = (e) => {
+            startY = e.touches[0].pageY;
         };
 
-        document.addEventListener('touchmove', preventPullToRefresh, { passive: false });
+        const handleTouchMove = (e) => {
+            const y = e.touches[0].pageY;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // Prevent default only if we're at the top and trying to scroll up
+            if (scrollTop === 0 && y > startY) {
+                e.preventDefault();
+            }
+        };
+
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
         return () => {
-            document.removeEventListener('touchmove', preventPullToRefresh);
+            document.removeEventListener('touchstart', handleTouchStart);
+            document.removeEventListener('touchmove', handleTouchMove);
         };
     }, []);
 
@@ -100,6 +131,11 @@ export default function App() {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
+        // Add custom styles
+        const styleElement = document.createElement('style');
+        styleElement.textContent = styles;
+        document.head.appendChild(styleElement);
+
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML';
         script.async = true;
@@ -113,6 +149,7 @@ export default function App() {
 
         return () => {
             document.head.removeChild(script);
+            document.head.removeChild(styleElement);
         };
     }, [canvasSize]);
 
