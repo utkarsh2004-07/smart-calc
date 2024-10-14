@@ -122,7 +122,23 @@ const DrawingApp = () => {
             const genAI = new GoogleGenerativeAI("AIzaSyDHzxPkKlgKzBtNX9iYWwqsyJexp6rROPM");
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            const result = await model.generateContent([ /* ... */ ]);
+
+            const result = await model.generateContent([
+                `You are an intelligent assistant capable of providing detailed explanations and solutions to a wide range of questions, including mathematical problems and general knowledge inquiries. 
+
+"1. If the user asks a mathematical question, please provide a step - by - step solution, explaining each step clearly and logically."
+"2. If the user asks a general knowledge question(e.g., "What is a triangle?"), provide a concise definition, relevant examples, and any important details that may help enhance understanding."
+3. Always be sure to clarify complex concepts and relate them to real - world applications where possible.
+
+Here are some example questions:
+                - "What is the area of a triangle with a base of 10 cm and a height of 5 cm?"
+                - "Can you explain the Pythagorean theorem?"
+                - "What is the definition of a triangle?"
+                - "How do I solve the equation 2x + 3 = 7?"
+
+Respond as if you are a knowledgeable teacher, and strive to make your explanations clear and engaging.`
+                ,
+            ]);
 
             const response = await result.response;
             const text = await response.text();
