@@ -1,23 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
-
-// You would typically import this, but for completeness, let's include the CSS here
-const styles = `
-.custom-scrollbar::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 5px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-body {
-    overscroll-behavior-y: contain;
-}
-`;
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const Button = ({ onClick, className, children }) => (
     <button
@@ -28,113 +11,26 @@ const Button = ({ onClick, className, children }) => (
     </button>
 );
 
-const ColorPicker = ({ colors, activeColor, onColorSelect }) => (
-    <div className="flex space-x-2">
-        {colors.map((color) => (
-            <div
-                key={color}
-                onClick={() => onColorSelect(color)}
-                className="w-6 h-6 cursor-pointer rounded-full"
-                style={{
-                    backgroundColor: color,
-                    border: activeColor === color ? '2px solid #fff' : 'none',
-                }}
-            />
-        ))}
-    </div>
-);
-
-const EraserTool = ({ size, onSizeChange, isActive, onToggle }) => (
-    <div className="flex items-center space-x-2">
-        <input
-            type="range"
-            min="5"
-            max="100"
-            value={size}
-            onChange={(e) => onSizeChange(Number(e.target.value))}
-            className="w-32"
-        />
-        <span className="text-white">Eraser: {size}px</span>
-        <Button
-            onClick={onToggle}
-            className={isActive ? 'bg-yellow-500 text-white' : 'bg-gray-700 text-white'}
-        >
-            {isActive ? 'Eraser Active' : 'Activate Eraser'}
-        </Button>
-    </div>
-);
-
-export default function App() {
+const DrawingApp = () => {
     const canvasRef = useRef(null);
-    const containerRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [color, setColor] = useState('white');
     const [latexExpression, setLatexExpression] = useState('');
     const [latexPosition, setLatexPosition] = useState({ x: 10, y: 200 });
     const [eraserSize, setEraserSize] = useState(10);
     const [isEraserActive, setIsEraserActive] = useState(false);
-    const [canvasSize, setCanvasSize] = useState({
-        width: window.innerWidth,
-        height: window.innerHeight - 100,
-    });
 
-    // Handle resizing of canvas
-    useEffect(() => {
-        const handleResize = () => {
-            setCanvasSize({
-                width: Math.max(window.innerWidth, containerRef.current.scrollWidth),
-                height: Math.max(window.innerHeight - 100, containerRef.current.scrollHeight),
-            });
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    // Improved pull-to-refresh prevention
-    useEffect(() => {
-        let startY;
-
-        const handleTouchStart = (e) => {
-            startY = e.touches[0].pageY;
-        };
-
-        const handleTouchMove = (e) => {
-            const y = e.touches[0].pageY;
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            
-            // Prevent default only if we're at the top and trying to scroll up
-            if (scrollTop === 0 && y > startY) {
-                e.preventDefault();
-            }
-        };
-
-        document.addEventListener('touchstart', handleTouchStart, { passive: false });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-        return () => {
-            document.removeEventListener('touchstart', handleTouchStart);
-            document.removeEventListener('touchmove', handleTouchMove);
-        };
-    }, []);
-
-    // Set up canvas and MathJax
     useEffect(() => {
         const canvas = canvasRef.current;
         if (canvas) {
             const ctx = canvas.getContext('2d');
-            canvas.width = canvasSize.width;
-            canvas.height = canvasSize.height;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 100;
             ctx.lineCap = 'round';
             ctx.lineWidth = 3;
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-
-        // Add custom styles
-        const styleElement = document.createElement('style');
-        styleElement.textContent = styles;
-        document.head.appendChild(styleElement);
 
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML';
@@ -149,70 +45,59 @@ export default function App() {
 
         return () => {
             document.head.removeChild(script);
-            document.head.removeChild(styleElement);
         };
-    }, [canvasSize]);
+    }, []);
 
-    // Update MathJax expression
+    // Mobile touch gesture prevention for pull-to-refresh
     useEffect(() => {
-        if (latexExpression && window.MathJax) {
-            setTimeout(() => {
-                window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub]);
-            }, 0);
-        }
-    }, [latexExpression]);
+        let startY;
 
-    const startDrawing = (x, y) => {
+        const handleTouchStart = (e) => {
+            startY = e.touches[0].pageY;
+        };
+
+        const handleTouchMove = (e) => {
+            const y = e.touches[0].pageY;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+            if (scrollTop === 0 && y > startY) {
+                e.preventDefault();  // Disable pull-to-refresh
+            }
+        };
+
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+        return () => {
+            document.removeEventListener('touchstart', handleTouchStart);
+            document.removeEventListener('touchmove', handleTouchMove);
+        };
+    }, []);
+
+    const startDrawing = (e) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         ctx.beginPath();
-        ctx.moveTo(x, y);
+        ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
         setIsDrawing(true);
     };
 
-    const draw = (x, y) => {
+    const draw = (e) => {
         if (!isDrawing) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (isEraserActive) {
-            ctx.clearRect(
-                x - eraserSize / 2,
-                y - eraserSize / 2,
-                eraserSize,
-                eraserSize
-            );
+            ctx.clearRect(e.nativeEvent.offsetX - eraserSize / 2, e.nativeEvent.offsetY - eraserSize / 2, eraserSize, eraserSize);
         } else {
             ctx.strokeStyle = color;
             ctx.lineWidth = 3;
-            ctx.lineTo(x, y);
+            ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
             ctx.stroke();
         }
     };
 
     const stopDrawing = () => {
         setIsDrawing(false);
-    };
-
-    // Mouse events for drawing
-    const handleMouseDown = (e) => {
-        startDrawing(e.nativeEvent.offsetX + containerRef.current.scrollLeft, e.nativeEvent.offsetY + containerRef.current.scrollTop);
-    };
-
-    const handleMouseMove = (e) => {
-        draw(e.nativeEvent.offsetX + containerRef.current.scrollLeft, e.nativeEvent.offsetY + containerRef.current.scrollTop);
-    };
-
-    // Touch events for drawing
-    const handleTouchStart = (e) => {
-        const touch = e.touches[0];
-        const rect = canvasRef.current.getBoundingClientRect();
-        startDrawing(touch.clientX - rect.left + containerRef.current.scrollLeft, touch.clientY - rect.top + containerRef.current.scrollTop);
-    };
-
-    const handleTouchMove = (e) => {
-        const touch = e.touches[0];
-        const rect = canvasRef.current.getBoundingClientRect();
-        draw(touch.clientX - rect.left + containerRef.current.scrollLeft, touch.clientY - rect.top + containerRef.current.scrollTop);
     };
 
     const resetCanvas = () => {
@@ -229,98 +114,124 @@ export default function App() {
         const imageDataUrl = canvas.toDataURL('image/png');
 
         try {
-            const response = await fetch('http://localhost:5000/process-image', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const genAI = new GoogleGenerativeAI('AIzaSyDHzxPkKlgKzBtNX9iYWwqsyJexp6rROPM'); // Replace with your API key
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            const result = await model.generateContent([
+                `You are an intelligent assistant capable of providing detailed explanations and solutions to a wide range of questions, including mathematical problems and general knowledge inquiries. 
+
+"1. If the user asks a mathematical question, please provide a step - by - step solution, explaining each step clearly and logically."
+"2. If the user asks a general knowledge question(e.g., "What is a triangle?"), provide a concise definition, relevant examples, and any important details that may help enhance understanding."
+3. Always be sure to clarify complex concepts and relate them to real - world applications where possible.
+
+Here are some example questions:
+                - "What is the area of a triangle with a base of 10 cm and a height of 5 cm?"
+                - "Can you explain the Pythagorean theorem?"
+                - "What is the definition of a triangle?"
+                - "How do I solve the equation 2x + 3 = 7?"
+
+Respond as if you are a knowledgeable teacher, and strive to make your explanations clear and engaging.
+`,
+                {
+                    inlineData: {
+                        data: imageDataUrl.split(',')[1],
+                        mimeType: "image/png"
+                    },
                 },
-                body: JSON.stringify({ imageDataUrl }),
-            });
+            ]);
 
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-
-            const data = await response.json();
-            setLatexExpression(data.latexExpression);
+            const response = await result.response;
+            const text = await response.text();
+            setLatexExpression(` (${text} )`); // Set LaTeX expression for rendering
         } catch (error) {
             console.error('Error processing image:', error);
             setLatexExpression('Error processing image');
         }
     };
 
-    const handleDragStop = (e, data) => {
-        const canvas = canvasRef.current;
-        const newX = Math.max(0, Math.min(data.x, canvas.width - 300));
-        const newY = Math.max(0, Math.min(data.y, canvas.height - 150));
-        setLatexPosition({ x: newX, y: newY });
+    const selectColor = (newColor) => {
+        setColor(newColor);
+        setIsEraserActive(false); // Deactivate eraser when selecting a color
     };
 
-    const handleScroll = () => {
-        const container = containerRef.current;
-        const newWidth = Math.max(window.innerWidth, container.scrollLeft + container.clientWidth + 200);
-        const newHeight = Math.max(window.innerHeight - 100, container.scrollTop + container.clientHeight + 200);
-
-        if (newWidth > canvasSize.width || newHeight > canvasSize.height) {
-            setCanvasSize({ width: newWidth, height: newHeight });
+    const handleDragStop = (e, data) => {
+        const canvas = canvasRef.current;
+        if (data.x + 300 > canvas.width) {
+            setLatexPosition({ x: canvas.width - 300, y: data.y });
+        } else if (data.x < 0) {
+            setLatexPosition({ x: 0, y: data.y });
+        } else if (data.y + 150 > canvas.height) {
+            setLatexPosition({ x: data.x, y: canvas.height - 150 });
+        } else if (data.y < 0) {
+            setLatexPosition({ x: data.x, y: 0 });
+        } else {
+            setLatexPosition({ x: data.x, y: data.y });
         }
     };
 
     return (
-        <div className="relative w-full h-screen bg-gray-900 overflow-hidden">
-            <div className="absolute top-0 left-0 z-10 p-4 space-y-4">
-                <div className="flex space-x-4 items-center">
-                    <Button onClick={resetCanvas} className="bg-red-500 text-white">
-                        Reset
-                    </Button>
-                    <Button onClick={processImage} className="bg-green-500 text-white">
-                        Calculate
-                    </Button>
-                    <ColorPicker
-                        colors={['white', 'red', 'green', 'blue', 'yellow', 'purple']}
-                        activeColor={color}
-                        onColorSelect={(newColor) => {
-                            setColor(newColor);
-                            setIsEraserActive(false);
-                        }}
-                    />
+        <div className="relative w-full h-screen bg-gray-900">
+            <div className="absolute top-0 left-0 z-10 p-4 space-x-4 flex items-center">
+                <Button onClick={resetCanvas} className="bg-red-500 text-white">
+                    Reset
+                </Button>
+                <Button onClick={processImage} className="bg-green-500 text-white">
+                    Process
+                </Button>
+
+                {/* Color palette for selecting the color */}
+                <div className="flex space-x-2">
+                    {['white', 'red', 'green', 'blue', 'yellow', 'purple'].map((clr) => (
+                        <div
+                            key={clr}
+                            onClick={() => selectColor(clr)}
+                            className="w-6 h-6 cursor-pointer"
+                            style={{ backgroundColor: clr, border: color === clr ? '2px solid #fff' : 'none' }}
+                        />
+                    ))}
                 </div>
-                <EraserTool
-                    size={eraserSize}
-                    onSizeChange={setEraserSize}
-                    isActive={isEraserActive}
-                    onToggle={() => setIsEraserActive(!isEraserActive)}
-                />
+
+                {/* Range input for eraser size */}
+                <div className="flex items-center">
+                    <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        value={eraserSize}
+                        onChange={(e) => setEraserSize(e.target.value)}
+                        className="mx-2"
+                    />
+                    <span className="text-white">Eraser Size: {eraserSize}px</span>
+                </div>
+
+                {/* Button to activate the eraser */}
+                <Button
+                    onClick={() => {
+                        setIsEraserActive(!isEraserActive);
+                    }}
+                    className={isEraserActive ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}
+                >
+                    {isEraserActive ? "Eraser Active" : "Activate Eraser"}
+                </Button>
             </div>
 
-            <div
-                ref={containerRef}
-                className="absolute top-0 left-0 w-full h-full overflow-auto custom-scrollbar"
-                onScroll={handleScroll}
-            >
-                <canvas
-                    ref={canvasRef}
-                    className="cursor-crosshair"
-                    style={{ width: canvasSize.width, height: canvasSize.height }}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={stopDrawing}
-                    onMouseOut={stopDrawing}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={stopDrawing}
-                />
-            </div>
+            <canvas
+                ref={canvasRef}
+                className="absolute top-0 w-full cursor-crosshair"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseOut={stopDrawing}
+            />
 
             {latexExpression && (
                 <Draggable
-                    position={latexPosition}
+                    defaultPosition={latexPosition}
                     onStop={handleDragStop}
-                    bounds="parent"
                 >
                     <div
-                        className="absolute p-4 bg-white rounded shadow-lg overflow-auto"
-                        style={{ maxWidth: '80%', maxHeight: '50%' }}
+                        className="absolute p-4 bg-white rounded shadow-lg max-w-md break-words overflow-auto"
+                        style={{ wordWrap: 'break-word', maxWidth: '1400px', maxHeight: '300px' }}
                     >
                         <div className="latex-content" style={{ whiteSpace: 'pre-wrap' }}>
                             {latexExpression}
@@ -330,4 +241,6 @@ export default function App() {
             )}
         </div>
     );
-}
+};
+
+export default DrawingApp;
