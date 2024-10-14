@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import './CustomScrollbar.css'; 
+import './CustomScrollbar.css';
+
 const Button = ({ onClick, className, children }) => (
     <button
         onClick={onClick}
@@ -10,7 +11,6 @@ const Button = ({ onClick, className, children }) => (
     </button>
 );
 
-// ColorPicker component
 const ColorPicker = ({ colors, activeColor, onColorSelect }) => (
     <div className="flex space-x-2">
         {colors.map((color) => (
@@ -27,7 +27,6 @@ const ColorPicker = ({ colors, activeColor, onColorSelect }) => (
     </div>
 );
 
-// EraserTool component
 const EraserTool = ({ size, onSizeChange, isActive, onToggle }) => (
     <div className="flex items-center space-x-2">
         <input
@@ -48,7 +47,6 @@ const EraserTool = ({ size, onSizeChange, isActive, onToggle }) => (
     </div>
 );
 
-// Main DrawingApp component
 export default function App() {
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -84,7 +82,6 @@ export default function App() {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Load MathJax
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML';
         script.async = true;
@@ -109,23 +106,18 @@ export default function App() {
         }
     }, [latexExpression]);
 
-    const startDrawing = (e) => {
+    const startDrawing = (x, y) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         ctx.beginPath();
-        ctx.moveTo(
-            e.nativeEvent.offsetX + containerRef.current.scrollLeft,
-            e.nativeEvent.offsetY + containerRef.current.scrollTop
-        );
+        ctx.moveTo(x, y);
         setIsDrawing(true);
     };
 
-    const draw = (e) => {
+    const draw = (x, y) => {
         if (!isDrawing) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const x = e.nativeEvent.offsetX + containerRef.current.scrollLeft;
-        const y = e.nativeEvent.offsetY + containerRef.current.scrollTop;
         if (isEraserActive) {
             ctx.clearRect(
                 x - eraserSize / 2,
@@ -143,6 +135,26 @@ export default function App() {
 
     const stopDrawing = () => {
         setIsDrawing(false);
+    };
+
+    const handleMouseDown = (e) => {
+        startDrawing(e.nativeEvent.offsetX + containerRef.current.scrollLeft, e.nativeEvent.offsetY + containerRef.current.scrollTop);
+    };
+
+    const handleMouseMove = (e) => {
+        draw(e.nativeEvent.offsetX + containerRef.current.scrollLeft, e.nativeEvent.offsetY + containerRef.current.scrollTop);
+    };
+
+    const handleTouchStart = (e) => {
+        const touch = e.touches[0];
+        const rect = canvasRef.current.getBoundingClientRect();
+        startDrawing(touch.clientX - rect.left + containerRef.current.scrollLeft, touch.clientY - rect.top + containerRef.current.scrollTop);
+    };
+
+    const handleTouchMove = (e) => {
+        const touch = e.touches[0];
+        const rect = canvasRef.current.getBoundingClientRect();
+        draw(touch.clientX - rect.left + containerRef.current.scrollLeft, touch.clientY - rect.top + containerRef.current.scrollTop);
     };
 
     const resetCanvas = () => {
@@ -225,17 +237,21 @@ export default function App() {
 
             <div
                 ref={containerRef}
-                className="absolute top-0 left-0 w-full h-full overflow-auto custom-scrollbar"
+                className="
+absolute top-0 left-0 w-full h-full overflow-auto custom-scrollbar"
                 onScroll={handleScroll}
             >
                 <canvas
                     ref={canvasRef}
                     className="cursor-crosshair"
                     style={{ width: canvasSize.width, height: canvasSize.height }}
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
                     onMouseUp={stopDrawing}
                     onMouseOut={stopDrawing}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={stopDrawing}
                 />
             </div>
 
