@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
-import './CustomScrollbar.css';
+import './CustomScrollbar.css'; // Assuming you have custom scrollbar styling
 
 const Button = ({ onClick, className, children }) => (
     <button
@@ -20,7 +20,7 @@ const ColorPicker = ({ colors, activeColor, onColorSelect }) => (
                 className="w-6 h-6 cursor-pointer rounded-full"
                 style={{
                     backgroundColor: color,
-                    border: activeColor === color ? '2px solid #fff' : 'none'
+                    border: activeColor === color ? '2px solid #fff' : 'none',
                 }}
             />
         ))}
@@ -40,9 +40,9 @@ const EraserTool = ({ size, onSizeChange, isActive, onToggle }) => (
         <span className="text-white">Eraser: {size}px</span>
         <Button
             onClick={onToggle}
-            className={isActive ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}
+            className={isActive ? 'bg-yellow-500 text-white' : 'bg-gray-700 text-white'}
         >
-            {isActive ? "Eraser Active" : "Activate Eraser"}
+            {isActive ? 'Eraser Active' : 'Activate Eraser'}
         </Button>
     </div>
 );
@@ -56,13 +56,17 @@ export default function App() {
     const [latexPosition, setLatexPosition] = useState({ x: 10, y: 200 });
     const [eraserSize, setEraserSize] = useState(10);
     const [isEraserActive, setIsEraserActive] = useState(false);
-    const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth, height: window.innerHeight - 100 });
+    const [canvasSize, setCanvasSize] = useState({
+        width: window.innerWidth,
+        height: window.innerHeight - 100,
+    });
 
+    // Handle resizing of canvas
     useEffect(() => {
         const handleResize = () => {
             setCanvasSize({
                 width: Math.max(window.innerWidth, containerRef.current.scrollWidth),
-                height: Math.max(window.innerHeight - 100, containerRef.current.scrollHeight)
+                height: Math.max(window.innerHeight - 100, containerRef.current.scrollHeight),
             });
         };
 
@@ -70,6 +74,20 @@ export default function App() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Prevent pull-to-refresh gesture on mobile devices
+    useEffect(() => {
+        const preventPullToRefresh = (e) => {
+            if (e.touches.length > 1) e.preventDefault();
+        };
+
+        document.addEventListener('touchmove', preventPullToRefresh, { passive: false });
+
+        return () => {
+            document.removeEventListener('touchmove', preventPullToRefresh);
+        };
+    }, []);
+
+    // Set up canvas and MathJax
     useEffect(() => {
         const canvas = canvasRef.current;
         if (canvas) {
@@ -98,6 +116,7 @@ export default function App() {
         };
     }, [canvasSize]);
 
+    // Update MathJax expression
     useEffect(() => {
         if (latexExpression && window.MathJax) {
             setTimeout(() => {
@@ -137,6 +156,7 @@ export default function App() {
         setIsDrawing(false);
     };
 
+    // Mouse events for drawing
     const handleMouseDown = (e) => {
         startDrawing(e.nativeEvent.offsetX + containerRef.current.scrollLeft, e.nativeEvent.offsetY + containerRef.current.scrollTop);
     };
@@ -145,6 +165,7 @@ export default function App() {
         draw(e.nativeEvent.offsetX + containerRef.current.scrollLeft, e.nativeEvent.offsetY + containerRef.current.scrollTop);
     };
 
+    // Touch events for drawing
     const handleTouchStart = (e) => {
         const touch = e.touches[0];
         const rect = canvasRef.current.getBoundingClientRect();
@@ -216,7 +237,7 @@ export default function App() {
                         Reset
                     </Button>
                     <Button onClick={processImage} className="bg-green-500 text-white">
-                        Process
+                        Calculate
                     </Button>
                     <ColorPicker
                         colors={['white', 'red', 'green', 'blue', 'yellow', 'purple']}
@@ -237,8 +258,7 @@ export default function App() {
 
             <div
                 ref={containerRef}
-                className="
-absolute top-0 left-0 w-full h-full overflow-auto custom-scrollbar"
+                className="absolute top-0 left-0 w-full h-full overflow-auto custom-scrollbar"
                 onScroll={handleScroll}
             >
                 <canvas
